@@ -91,18 +91,15 @@
     <h5 class="text-muted">No hay productos en la venta</h5>
 }
 
-<EditForm Model="_sale" FormName="frmSale" OnValidSubmit="Confirm">
-    <DataAnnotationsValidator />
-    <div class="input-group input-group-lg mb-3">
+<div class="input-group input-group-lg mb-3">
     <span class="input-group-text" id="inputGroup-sizing-lg">Total</span>
-        <div type="text" class="form-control">$@_totalAmount</div>
-    </div>
-    <div class="mb-2">
-        <button type="submit" class="btn btn-success btn-lg">Confirmar</button>
-        <button type="button" class="btn btn-danger btn-lg ms-2" @onclick="Cancel" @onclick:preventDefault>Cancelar</button>
-    </div>
-    <ValidationMessage For="@(() => _sale.TotalAmount)" />
-</EditForm>
+    <div type="text" class="form-control">$@_totalAmount</div>
+</div>
+
+<form>
+    <button type="button" class="btn btn-success btn-lg @(_saleDetails.Count == 0 ? "disabled" : "")" @onclick="Confirm" @onclick:preventDefault>Confirmar</button>
+    <button type="button" class="btn btn-danger btn-lg ms-2" @onclick="Cancel" @onclick:preventDefault>Cancelar</button>
+</form>
 
 @code {
     private SaleDetail _saleDetail = new();
@@ -132,6 +129,13 @@
         if (previousSaleDetail != null)
         {
             _errorMessage = "El producto ya ha sido agregado";
+            _showError = true;
+            return;
+        }
+
+        if (_saleDetail.Quantity <= 0)
+    {
+            _errorMessage = "La cantidad debe ser mayor que 0";
             _showError = true;
             return;
         }
