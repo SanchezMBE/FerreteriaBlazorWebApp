@@ -15,21 +15,30 @@
     </div>
 }
 
-<form>
+<EditForm Model="_saleDetail" FormName="frmSaleDetail" OnValidSubmit="AddProduct">
+    <DataAnnotationsValidator />
     <div class="row mb-3">
         <label for="numCode" class="col-2 col-form-label">Código</label>
         <div class="col-10">
-            <input type="number" required class="form-control" id="numCode" @bind="_productId"/>
+            <InputSelect class="form-control" id="numCode" @bind-Value="_saleDetail.Id">
+                <option value="0" disabled="disabled">Seleccione un producto...</option>
+                @foreach (var product in _products)
+                {
+                    <option value="@product.Id">@product.Id @product.Description</option>
+                }
+            </InputSelect>
+            <ValidationMessage For="@(() => _saleDetail.ProductId)" />
         </div>
     </div>
     <div class="row mb-3">
-        <label for="numCode" class="col-2 col-form-label">Cantidad</label>
+        <label for="numQuantity" class="col-2 col-form-label">Cantidad</label>
         <div class="col-10">
-            <input type="number" required class="form-control" id="numCode" @bind="_quantity" />
+            <InputNumber class="form-control" id="numQuantity" @bind-Value="_saleDetail.Quantity"></InputNumber>
+            <ValidationMessage For="@(() => _saleDetail.Quantity)" />
         </div>
     </div>
-    <button type="button" class="btn btn-primary mb-3" @onclick="AddProduct">Agregar producto</button>
-</form>
+    <button type="submit" class="btn btn-primary mb-3">Agregar producto</button>
+</EditForm>
 
 @if (_saleDetails.Count != 0)
 {
@@ -82,28 +91,36 @@
     <h5 class="text-muted">No hay productos en la venta</h5>
 }
 
-<div class="input-group input-group-lg mb-3">
+<EditForm Model="_sale" FormName="frmSale" OnValidSubmit="Confirm">
+    <DataAnnotationsValidator />
+    <div class="input-group input-group-lg mb-3">
     <span class="input-group-text" id="inputGroup-sizing-lg">Total</span>
-    <div type="text" class="form-control">$@_totalAmount</div>
-</div>
-
-<form>
-    <button type="button" class="btn btn-success btn-lg @(_saleDetails.Count == 0 ? "disabled" : "")" @onclick="Confirm" @onclick:preventDefault>Confirmar</button>
-    <button type="button" class="btn btn-danger btn-lg ms-2" @onclick="Cancel" @onclick:preventDefault>Cancelar</button>
-</form>
+        <div type="text" class="form-control">$@_totalAmount</div>
+    </div>
+    <div class="mb-2">
+        <button type="submit" class="btn btn-success btn-lg">Confirmar</button>
+        <button type="button" class="btn btn-danger btn-lg ms-2" @onclick="Cancel" @onclick:preventDefault>Cancelar</button>
+    </div>
+    <ValidationMessage For="@(() => _sale.TotalAmount)" />
+</EditForm>
 
 @code {
-    private int _productId;
-    private int _quantity;
+    private SaleDetail _saleDetail = new();
+    private List<Product> _products = new();
     private List<SaleDetail> _saleDetails = new();
     private bool _showError = false;
     private string _errorMessage = "";
     private Sale _sale = new();
     private decimal _totalAmount;
 
+    protected override async Task OnInitializedAsync()
+    {
+        _products = await _repositoryProducts.GetAll();
+    }
+
     private async void AddProduct()
     {
-        Product product = await _repositoryProducts.Get(_productId);
+        Product product = await _repositoryProducts.Get(_saleDetail.Id);
         if (product == null)
         {
             _errorMessage = "El producto ingresado no existe";
@@ -119,19 +136,12 @@
             return;
         }
 
-        if (_quantity <= 0)
-        {
-            _errorMessage = "La cantidad debe ser mayor que 0";
-            _showError = true;
-            return;
-        }
-
         _showError = false;
         SaleDetail saleDetail = new()
             {
                 ProductId = product.Id,
                 Product = product,
-                Quantity = _quantity,
+                Quantity = _saleDetail.Quantity,
                 UnitPrice = product.SalePrice
             };
         _saleDetails.Add(saleDetail);
