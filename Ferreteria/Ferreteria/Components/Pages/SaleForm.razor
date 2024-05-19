@@ -1,0 +1,190 @@
+﻿@page "/ventas/nueva"
+@rendermode InteractiveServer
+@inject IRepositoryProducts _repositoryProducts;
+@inject IRepositorySaleDetails _repositorySaleDetails;
+@inject IRepositorySales _repositorySales;
+@inject NavigationManager _navigator;
+<PageTitle>Nueva venta</PageTitle>
+<h2>Nueva venta</h2>
+
+@if (_showError)
+{
+    <div class="alert alert-danger alert-dismissible" role="alert">
+        @_errorMessage
+        <button type="button" class="btn-close" aria-label="Close" @onclick="() => _showError = false"></button>
+    </div>
+}
+
+<form>
+    <div class="row mb-3">
+        <label for="numCode" class="col-2 col-form-label">Código</label>
+        <div class="col-10">
+            <input type="number" required class="form-control" id="numCode" @bind="_productId"/>
+        </div>
+    </div>
+    <div class="row mb-3">
+        <label for="numCode" class="col-2 col-form-label">Cantidad</label>
+        <div class="col-10">
+            <input type="number" required class="form-control" id="numCode" @bind="_quantity" />
+        </div>
+    </div>
+    <button type="button" class="btn btn-primary mb-3" @onclick="AddProduct">Agregar producto</button>
+</form>
+
+@if (_saleDetails.Count != 0)
+{
+    <h5 class="text-muted">Listado de productos</h5>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Código</th>
+                <th>Descripción</th>
+                <th>Cantidad</th>
+                <th>Precio unitario</th>
+                <th>Total</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (SaleDetail saleDetail in _saleDetails)
+            {
+                <tr>
+                    <td>@saleDetail.Product?.Code</td>
+                    <td>@saleDetail.Product?.Description</td>
+                    <td>
+                        <button class="btn btn-primary btn-sm me-2" title="Decrementar cantidad" @onclick="() => DecreaseProductQuantity(saleDetail)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-dash-lg" viewBox="0 0 16 16">
+                                <path fill-rule="evenodd" d="M2 8a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 8" />
+                            </svg>
+                        </button>
+                        @saleDetail.Quantity
+                        <button class="btn btn-primary btn-sm ms-2" title="Incrementar cantidad" @onclick="() => IncreaseProductQuantity(saleDetail)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus-lg" viewBox="0 0 16 16">
+                                <path fill-rule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2" />
+                            </svg>
+                        </button>
+                    </td>
+                    <td>$@saleDetail.UnitPrice</td>
+                    <td>$@(saleDetail.Quantity * saleDetail.UnitPrice)</td>
+                    <td>
+                        <button class="btn btn-danger btn-sm" title="Eliminar producto" @onclick="() => DeleteProduct(saleDetail)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash3-fill" viewBox="0 0 16 16">
+                                <path d="M11 1.5v1h3.5a.5.5 0 0 1 0 1h-.538l-.853 10.66A2 2 0 0 1 11.115 16h-6.23a2 2 0 0 1-1.994-1.84L2.038 3.5H1.5a.5.5 0 0 1 0-1H5v-1A1.5 1.5 0 0 1 6.5 0h3A1.5 1.5 0 0 1 11 1.5m-5 0v1h4v-1a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5M4.5 5.029l.5 8.5a.5.5 0 1 0 .998-.06l-.5-8.5a.5.5 0 1 0-.998.06m6.53-.528a.5.5 0 0 0-.528.47l-.5 8.5a.5.5 0 0 0 .998.058l.5-8.5a.5.5 0 0 0-.47-.528M8 4.5a.5.5 0 0 0-.5.5v8.5a.5.5 0 0 0 1 0V5a.5.5 0 0 0-.5-.5" />
+                            </svg>
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+} else
+{
+    <h5 class="text-muted">No hay productos en la venta</h5>
+}
+
+<div class="input-group input-group-lg mb-3">
+    <span class="input-group-text" id="inputGroup-sizing-lg">Total</span>
+    <div type="text" class="form-control">$@_totalAmount</div>
+</div>
+
+<form>
+    <button type="button" class="btn btn-success btn-lg @(_saleDetails.Count == 0 ? "disabled" : "")" @onclick="Confirm" @onclick:preventDefault>Confirmar</button>
+    <button type="button" class="btn btn-danger btn-lg ms-2" @onclick="Cancel" @onclick:preventDefault>Cancelar</button>
+</form>
+
+@code {
+    private int _productId;
+    private int _quantity;
+    private List<SaleDetail> _saleDetails = new();
+    private bool _showError = false;
+    private string _errorMessage = "";
+    private Sale _sale = new();
+    private decimal _totalAmount;
+
+    private async void AddProduct()
+    {
+        Product product = await _repositoryProducts.Get(_productId);
+        if (product == null)
+        {
+            _errorMessage = "El producto ingresado no existe";
+            _showError = true;
+            return;
+        }
+
+        SaleDetail previousSaleDetail = _saleDetails.Find(sd => sd.ProductId == product.Id)!;
+        if (previousSaleDetail != null)
+        {
+            _errorMessage = "El producto ya ha sido agregado";
+            _showError = true;
+            return;
+        }
+
+        if (_quantity <= 0)
+        {
+            _errorMessage = "La cantidad debe ser mayor que 0";
+            _showError = true;
+            return;
+        }
+
+        _showError = false;
+        SaleDetail saleDetail = new()
+            {
+                ProductId = product.Id,
+                Product = product,
+                Quantity = _quantity,
+                UnitPrice = product.SalePrice
+            };
+        _saleDetails.Add(saleDetail);
+        UpdateTotalAmount();
+    }
+
+    private void DeleteProduct(SaleDetail saleDetail)
+    {
+        _saleDetails.Remove(saleDetail);
+        UpdateTotalAmount();
+    }
+
+    private void IncreaseProductQuantity(SaleDetail saleDetail)
+    {
+        saleDetail.Quantity++;
+        UpdateTotalAmount();
+    }
+
+    private void DecreaseProductQuantity(SaleDetail saleDetail)
+    {
+        saleDetail.Quantity--;
+        if (saleDetail.Quantity == 0)
+        {
+            DeleteProduct(saleDetail);
+        }
+        UpdateTotalAmount();
+    }
+
+    private void UpdateTotalAmount()
+    {
+        _totalAmount = 0;
+        foreach (SaleDetail saleDetail in _saleDetails)
+        {
+            _totalAmount += saleDetail.UnitPrice * saleDetail.Quantity;
+        }
+    }
+
+    private async void Confirm()
+    {
+        _sale.SaleDate = DateTime.Now;
+        _sale = await _repositorySales.Add(_sale);
+        foreach (SaleDetail saleDetail in _saleDetails)
+        {
+            saleDetail.SaleId = _sale.Id;
+            await _repositorySaleDetails.Add(saleDetail);
+        }
+        _sale.TotalAmount = _totalAmount;
+        await _repositorySales.Update(_sale.Id, _sale!);
+        Cancel();
+    }
+
+    private void Cancel()
+    {
+        _navigator.NavigateTo("/ventas");
+    }
+}

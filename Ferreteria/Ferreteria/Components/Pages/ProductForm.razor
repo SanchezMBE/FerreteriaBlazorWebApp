@@ -1,0 +1,93 @@
+﻿@page "/productos/nuevo"
+@page "/productos/editar/{Id:int}"
+@rendermode InteractiveServer
+@inject IRepositoryProducts _repository;
+@inject NavigationManager _navigator;
+<PageTitle>@_message productos</PageTitle>
+<h2>@_message producto</h2>
+
+<EditForm Model="_product" FormName="frmProduct" OnValidSubmit="Guardar">
+    <DataAnnotationsValidator />
+    <div class="row mb-3">
+        <label for="numCode" class="col-2 col-form-label">Código</label>
+        <div class="col-10">
+            <InputNumber class="form-control" id="numCode" @bind-Value="_product.Code"></InputNumber>
+            <ValidationMessage For="@(() => _product.Code)" />
+        </div>
+    </div>
+    <div class="row mb-3">
+        <label for="txtDescription" class="col-form-label col-2">Descripción</label>
+        <div class="col-10">
+            <InputText class="form-control" id="txtDescription" @bind-Value="_product.Description"></InputText>
+            <ValidationMessage For="@(() => _product.Description)" />
+        </div>
+    </div>
+    <div class="row mb-3">
+        <label for="numBuyPrice" class="col-2 col-form-label">Precio de compra</label>
+        <div class="col-10">
+            <InputNumber class="form-control" id="numBuyPrice" @bind-Value="_product.BuyPrice"></InputNumber>
+            <ValidationMessage For="@(() => _product.BuyPrice)" />
+        </div>
+    </div>
+    <div class="row mb-3">
+        <label for="numSalePrice" class="col-2 col-form-label">Precio de venta</label>
+        <div class="col-10">
+            <InputNumber class="form-control" id="numSalePrice" @bind-Value="_product.SalePrice"></InputNumber>
+            <ValidationMessage For="@(() => _product.SalePrice)" />
+        </div>
+    </div>
+    <div class="row mb-3">
+        <label for="numStock" class="col-2 col-form-label">Cantidad en stock</label>
+        <div class="col-10">
+            <InputNumber class="form-control" id="numStock" @bind-Value="_product.StockQuantity"></InputNumber>
+            <ValidationMessage For="@(() => _product.StockQuantity)" />
+        </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <button type="button" class="btn btn-danger ms-2" @onclick="Cancelar" @onclick:preventDefault>Cancelar</button>
+
+</EditForm>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    private string _message = "";
+    private Product _product = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id > 0)
+        {
+            Product product = await _repository.Get(Id);
+            _product.Id = product.Id;
+            _product.Code = product.Code;
+            _product.Description = product.Description;
+            _product.BuyPrice = product.BuyPrice;
+            _product.SalePrice = product.SalePrice;
+            _product.StockQuantity = product.StockQuantity;
+            _message = "Editar";
+        }
+        else
+        {
+            _message = "Nuevo";
+        }
+    }
+
+    private async void Guardar()
+    {
+        if (Id > 0)
+        {
+            await _repository.Update(Id, _product!);
+        }
+        else
+        {
+            await _repository.Add(_product);
+        }
+        Cancelar();
+    }
+
+    private void Cancelar()
+    {
+        _navigator.NavigateTo("/productos");
+    }
+}

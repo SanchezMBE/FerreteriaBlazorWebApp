@@ -1,0 +1,78 @@
+﻿@page "/ventas/detalles/{Id:int}"
+@rendermode InteractiveServer
+@inject IRepositoryProducts _repositoryProducts;
+@inject IRepositorySaleDetails _repositorySaleDetails;
+@inject IRepositorySales _repositorySales;
+@inject NavigationManager _navigator;
+<PageTitle>Detalles de la venta</PageTitle>
+<h2>Detalles de la venta @Id</h2>
+
+@if (_sale == null || _saleDetails == null)
+{
+    <div class="spinner-border" role="status">
+        <span class="visually-hidden">Cargando...</span>
+    </div>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Código</th>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Precio unitario</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (SaleDetail saleDetail in _saleDetails)
+            {
+                <tr>
+                    <td>@saleDetail.Product?.Code</td>
+                    <td>@saleDetail.Product?.Description</td>
+                    <td>@saleDetail.Quantity</td>
+                    <td>@saleDetail.UnitPrice</td>
+                    <td>@(saleDetail.Quantity * saleDetail.UnitPrice)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<div class="input-group input-group-lg mb-3">
+    <span class="input-group-text" id="inputGroup-sizing-lg">Total</span>
+    @if (_sale == null)
+    {
+        <div type="text" class="form-control">$0.00</div>
+    } else
+    {
+        <div type="text" class="form-control">$@_sale.TotalAmount</div>
+    }
+</div>
+
+<form>
+    <button type="button" class="btn btn-secondary btn-lg" @onclick="Cancel" @onclick:preventDefault>Regresar</button>
+</form>
+
+@code {
+    [Parameter]
+    public int Id { get; set; } 
+    private Sale _sale = new();
+    private List<SaleDetail>? _saleDetails;
+    protected override async Task OnInitializedAsync()
+    {
+        Sale sale = await _repositorySales.Get(Id);
+        _sale.Id = sale.Id;
+        _sale.SaleDate = sale.SaleDate;
+        _sale.TotalAmount = sale.TotalAmount;
+        _sale.SaleDetails = sale.SaleDetails;
+
+        _saleDetails = await _repositorySaleDetails.GetBySaleId(_sale.Id);
+    }
+
+    private void Cancel()
+    {
+        _navigator.NavigateTo("/ventas");
+    }
+}
