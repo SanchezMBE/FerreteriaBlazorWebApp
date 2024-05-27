@@ -7,24 +7,23 @@
 <PageTitle>Nueva venta</PageTitle>
 <h2>Nueva venta</h2>
 
-@if (_showError)
-{
-    <div class="alert alert-danger alert-dismissible" role="alert">
-        @_errorMessage
-        <button type="button" class="btn-close" aria-label="Close" @onclick="() => _showError = false"></button>
-    </div>
-}
-
 <EditForm Model="_saleDetail" FormName="frmSaleDetail" OnValidSubmit="AddProduct">
+    @if (_showError)
+    {
+        <div class="alert alert-danger alert-dismissible" role="alert">
+            @_errorMessage
+            <button type="button" class="btn-close" aria-label="Close" @onclick="() => _showError = false"></button>
+        </div>
+    }
     <DataAnnotationsValidator />
     <div class="row mb-3">
-        <label for="numCode" class="col-2 col-form-label">Código</label>
+        <label for="numProductId" class="col-2 col-form-label">Producto</label>
         <div class="col-10">
-            <InputSelect class="form-control" id="numCode" @bind-Value="_saleDetail.Id">
+            <InputSelect class="form-control" id="numProductId" @bind-Value="_saleDetail.ProductId">
                 <option value="0" disabled="disabled">Seleccione un producto...</option>
                 @foreach (var product in _products)
                 {
-                    <option value="@product.Id">@product.Id @product.Description</option>
+                    <option value="@product.Id">@product.Code @product.Description</option>
                 }
             </InputSelect>
             <ValidationMessage For="@(() => _saleDetail.ProductId)" />
@@ -91,24 +90,24 @@
     <h5 class="text-muted">No hay productos en la venta</h5>
 }
 
-<div class="input-group input-group-lg mb-3">
-    <span class="input-group-text" id="inputGroup-sizing-lg">Total</span>
-    <div type="text" class="form-control">$@_totalAmount</div>
-</div>
-
-<form>
-    <button type="button" class="btn btn-success btn-lg @(_saleDetails.Count == 0 ? "disabled" : "")" @onclick="Confirm" @onclick:preventDefault>Confirmar</button>
+<EditForm Model="_sale" FormName="frmSale" OnValidSubmit="Confirm">
+    <DataAnnotationsValidator/>
+    <div class="input-group input-group-lg mb-3">
+        <span class="input-group-text" id="inputGroup-sizing-lg">Total</span>
+        <div type="text" class="form-control">$@_sale.TotalAmount</div>
+    </div>
+    <button type="submit" class="btn btn-success btn-lg">Confirmar</button>
     <button type="button" class="btn btn-danger btn-lg ms-2" @onclick="Cancel" @onclick:preventDefault>Cancelar</button>
-</form>
+    <ValidationMessage For="@(() => _sale.TotalAmount)" />
+</EditForm>
 
 @code {
     private SaleDetail _saleDetail = new();
     private List<Product> _products = new();
     private List<SaleDetail> _saleDetails = new();
+    private Sale _sale = new();
     private bool _showError = false;
     private string _errorMessage = "";
-    private Sale _sale = new();
-    private decimal _totalAmount;
 
     protected override async Task OnInitializedAsync()
     {
@@ -117,7 +116,7 @@
 
     private async void AddProduct()
     {
-        Product product = await _repositoryProducts.Get(_saleDetail.Id);
+        Product product = await _repositoryProducts.Get(_saleDetail.ProductId);
         if (product == null)
         {
             _errorMessage = "El producto ingresado no existe";
@@ -133,9 +132,10 @@
             return;
         }
 
-        if (_saleDetail.Quantity <= 0)
-    {
-            _errorMessage = "La cantidad debe ser mayor que 0";
+        int diff = product.StockQuantity - _saleDetail.Quantity;
+        if (diff < 0)
+        {
+            _errorMessage = "No hay suficiente cantidad en stock";
             _showError = true;
             return;
         }
@@ -158,8 +158,17 @@
         UpdateTotalAmount();
     }
 
-    private void IncreaseProductQuantity(SaleDetail saleDetail)
+    private async void IncreaseProductQuantity(SaleDetail saleDetail)
     {
+        Product product = await _repositoryProducts.Get(saleDetail.ProductId);
+        int diff = product.StockQuantity - saleDetail.Quantity;
+        if (diff <= 0)
+        {
+            _errorMessage = "No hay suficiente cantidad en stock";
+            _showError = true;
+            return;
+        }
+
         saleDetail.Quantity++;
         UpdateTotalAmount();
     }
@@ -176,10 +185,10 @@
 
     private void UpdateTotalAmount()
     {
-        _totalAmount = 0;
+        _sale.TotalAmount = 0;
         foreach (SaleDetail saleDetail in _saleDetails)
         {
-            _totalAmount += saleDetail.UnitPrice * saleDetail.Quantity;
+            _sale.TotalAmount += saleDetail.UnitPrice * saleDetail.Quantity;
         }
     }
 
@@ -190,9 +199,11 @@
         foreach (SaleDetail saleDetail in _saleDetails)
         {
             saleDetail.SaleId = _sale.Id;
+            Product product = await _repositoryProducts.Get(saleDetail.ProductId);
+            product.StockQuantity -= saleDetail.Quantity;
+            await _repositoryProducts.Update(product.Id, product);
             await _repositorySaleDetails.Add(saleDetail);
         }
-        _sale.TotalAmount = _totalAmount;
         await _repositorySales.Update(_sale.Id, _sale!);
         Cancel();
     }

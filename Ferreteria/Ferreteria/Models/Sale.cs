@@ -5,8 +5,6 @@ namespace Ferreteria.Models
 {
     public class Sale
     {
-        [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         public DateTime SaleDate { get; set; }
         [Required(ErrorMessage = "El total es requerido")]

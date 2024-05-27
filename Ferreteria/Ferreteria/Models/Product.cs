@@ -5,8 +5,6 @@ namespace Ferreteria.Models
 {
     public class Product
     {
-        [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         [Required(ErrorMessage = "El código es requerido")]
         [Range(0, int.MaxValue, ErrorMessage = "El código debe ser un número positivo")]
